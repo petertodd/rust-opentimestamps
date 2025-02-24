@@ -1,0 +1,14 @@
+[package]
+name = "opentimestamps"
+version = "0.3.0-dev"
+edition = "2024"
+
+[dependencies]
+bitcoin_hashes = "0.16.0"
+rand = "0.9.0"
+reqwest = "0.12.12"
+thiserror = "2.0.11"
+tokio = { version = "1", features = ["time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
