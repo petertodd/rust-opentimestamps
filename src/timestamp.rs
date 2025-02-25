@@ -101,7 +101,7 @@ impl Steps {
     }
 
     pub fn to_serialized_bytes(&self) -> Box<[u8]> {
-        let mut r = vec![];
+        let mut r = Vec::with_capacity(self.0.len()); // at least one byte per step
         self.serialize(&mut r).expect("Vec write implementation is infallible");
         r.into_boxed_slice()
     }
@@ -185,6 +185,10 @@ impl<M> Timestamp<M> {
 impl<M: AsRef<[u8]>> Timestamp<M> {
     pub fn serialize(&self, writer: &mut impl io::Write) -> Result<(), io::Error> {
         self.steps.serialize(writer)
+    }
+
+    pub fn to_serialized_bytes(&self) -> Box<[u8]> {
+        self.steps.to_serialized_bytes()
     }
 
     pub fn deserialize(msg: M, reader: &mut impl io::Read) -> Result<Self, DeserializeError> {
@@ -300,5 +304,19 @@ mod tests {
 
         let attestations: Vec<&Attestation> = t.steps().attestations().collect();
         assert_eq!(attestations, vec![&Attestation::Bitcoin { block_height: 42 }]);
+    }
+
+    #[test]
+    fn test_timestamp_serialize() {
+        let t = TimestampBuilder::new(b"hello")
+                                 .append(b" world!")
+                                 .hash(HashOp::Sha256)
+                                 .hash(HashOp::Sha256)
+                                 .hash(HashOp::Sha256)
+                                 .finish_with_attestation(Attestation::Bitcoin { block_height: 42 });
+        let serialized = t.to_serialized_bytes();
+
+        assert_eq!(&serialized[..],
+                   &b"\xf0\x07 world!\x08\x08\x08\x00\x05\x88\x96\x0d\x73\xd7\x19\x01\x01\x2a"[..]);
     }
 }

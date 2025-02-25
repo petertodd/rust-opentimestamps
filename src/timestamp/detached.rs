@@ -63,6 +63,15 @@ impl DetachedTimestampFile {
         self.inner.serialize(writer)
     }
 
+    pub fn to_serialized_bytes(&self) -> Box<[u8]> {
+        let mut r = Vec::with_capacity(
+            Self::HEADER_MAGIC.len() + 1 +
+            1 + self.digest().as_ref().len() +
+            self.inner.steps().0.len());
+        self.serialize(&mut r).expect("writes to Vec are infallible");
+        r.into_boxed_slice()
+    }
+
     pub fn deserialize(reader: &mut impl io::Read) -> Result<Self, DeserializeError> {
         let mut magic = [0u8; Self::HEADER_MAGIC.len()];
 
