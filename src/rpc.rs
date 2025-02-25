@@ -241,8 +241,14 @@ mod test {
             timeout: Duration::from_secs(5),
         };
 
-        // FIXME: validate that ts had the expected attestations in it
-        let _ts = stamp_with_options([0; 32], stamp_options).await?;
+        let ts = stamp_with_options([0; 32], stamp_options).await?;
+
+        let mut actual_attestations: Vec<&Attestation> = ts.steps().attestations().collect();
+        actual_attestations.sort();
+        let expected_attestations = vec![&Attestation::Bitcoin { block_height: 42 },
+                                         &Attestation::Bitcoin { block_height: 43 }];
+
+        assert_eq!(actual_attestations, expected_attestations);
 
         mock1.assert_async().await;
         mock2.assert_async().await;

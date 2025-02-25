@@ -86,6 +86,13 @@ impl Steps {
         Self(steps)
     }
 
+    /// Returns an iterator over all the attestations in these steps.
+    pub fn attestations<'a>(&'a self) -> Attestations<'a> {
+        Attestations {
+            remaining_steps: self.0.iter(),
+        }
+    }
+
     pub fn serialize(&self, w: &mut impl io::Write) -> Result<(), io::Error> {
         for step in &self.0 {
             step.serialize(w)?;
@@ -118,6 +125,25 @@ impl Steps {
         };
 
         Ok(Self(steps))
+    }
+}
+
+#[derive(Debug)]
+pub struct Attestations<'a> {
+    remaining_steps: std::slice::Iter<'a, Step>,
+}
+
+impl<'a> Iterator for Attestations<'a> {
+    type Item = &'a Attestation;
+
+    fn next(&mut self) -> Option<&'a Attestation> {
+        loop {
+            match self.remaining_steps.next() {
+                None => break None,
+                Some(Step::Attestation(attestation)) => break Some(attestation),
+                _ => {},
+            }
+        }
     }
 }
 
@@ -157,11 +183,6 @@ impl<M> Timestamp<M> {
 }
 
 impl<M: AsRef<[u8]>> Timestamp<M> {
-    /// Returns an iterator over all the attestations in this timestamp.
-    pub fn attestations(&self) -> impl Iterator<Item = Attestation> {
-        [].into_iter()
-    }
-
     pub fn serialize(&self, writer: &mut impl io::Write) -> Result<(), io::Error> {
         self.steps.serialize(writer)
     }
@@ -270,11 +291,14 @@ mod tests {
 
     #[test]
     fn test_timestamp_builder() {
-        let _t = TimestampBuilder::new(b"hello")
+        let t = TimestampBuilder::new(b"hello")
                                  .append(b" world!")
                                  .hash(HashOp::Sha256)
                                  .hash(HashOp::Sha256)
                                  .hash(HashOp::Sha256)
                                  .finish_with_attestation(Attestation::Bitcoin { block_height: 42 });
+
+        let attestations: Vec<&Attestation> = t.steps().attestations().collect();
+        assert_eq!(attestations, vec![&Attestation::Bitcoin { block_height: 42 }]);
     }
 }

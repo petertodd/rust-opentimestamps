@@ -13,7 +13,7 @@ const BITCOIN_ATTESTATION_TAG: Tag = [0x05, 0x88, 0x96, 0x0d, 0x73, 0xd7, 0x19, 
 const PENDING_ATTESTATION_TAG: Tag = [0x83, 0xdf, 0xe3, 0x0d, 0x2e, 0xf9, 0x0c, 0x8e];
 const MAX_PAYLOAD_SIZE: usize = 8192;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Attestation {
     Bitcoin {
         block_height: u32,
