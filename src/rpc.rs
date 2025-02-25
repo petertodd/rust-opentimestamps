@@ -55,6 +55,9 @@ pub enum PostDigestError {
 
     #[error("{0}")]
     Post(#[from] reqwest::Error),
+
+    #[error("deserialization error: {0}")]
+    Deserialize(#[from] crate::ser::DeserializeError),
 }
 
 async fn post_digest(
@@ -80,7 +83,7 @@ async fn post_digest(
     let serialized = response.bytes().await?;
     match Timestamp::deserialize(digest, &mut &serialized[..]) {
         Ok(ts) => Ok(ts),
-        Err(_) => todo!(),
+        Err(err) => Err(err.into()),
     }
 }
 
@@ -129,17 +132,193 @@ async fn stamp_with_options(digest: [u8; 32], options: StampOptions) -> Result<T
 mod test {
     use super::*;
 
+    use crate::timestamp::*;
+    use crate::attestation::*;
+    use crate::op::*;
+
     #[tokio::test]
     async fn test_post_digest() -> Result<(), Box<dyn std::error::Error>> {
-        let url = Url::try_from("https://a.pool.opentimestamps.org/digest").unwrap();
-        let ts = post_digest([0; 32], url).await?;
-        dbg!(ts);
+        let mut server = mockito::Server::new_async().await;
+
+        let expected_steps = vec![Step::Attestation(Attestation::Bitcoin { block_height: 42 })];
+        let expected_steps = Steps::trust(expected_steps);
+
+        let mock = server.mock("POST", "/digest")
+                         .with_body(expected_steps.to_serialized_bytes())
+                         .match_body(vec![42u8; 32])
+                         .create_async().await;
+
+        let url: &str = &server.url();
+        let url = Url::try_from(url).unwrap();
+        let ts = post_digest([42; 32], url).await?;
+
+        assert_eq!(ts.steps(), &expected_steps);
+
+        mock.assert_async().await;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_post_digest_errors() -> Result<(), Box<dyn std::error::Error>> {
+        let mut server = mockito::Server::new_async().await;
+        let url: &str = &server.url();
+        let url = Url::try_from(url).unwrap();
+
+        let mock = server.mock("POST", "/digest")
+                         .with_body("not found")
+                         .with_status(404)
+                         .match_body(vec![42u8; 32])
+                         .create_async().await;
+
+        match post_digest([42; 32], url.clone()).await {
+            Err(PostDigestError::BadStatus(reqwest::StatusCode::NOT_FOUND)) => {},
+            unexpected => panic!("{:?}", unexpected),
+        };
+
+        mock.assert_async().await;
+
+
+        let mock = server.mock("POST", "/digest")
+                         .with_body("not a timestamp")
+                         .match_body(vec![43u8; 32])
+                         .create_async().await;
+
+        match post_digest([43; 32], url.clone()).await {
+            Err(PostDigestError::Deserialize(_)) => {},
+            unexpected => panic!("{:?}", unexpected),
+        };
+
+        mock.assert_async().await;
+
+
+        let mut expected_steps = vec![Step::Op(Op::HashOp(HashOp::Sha256)); 10_000];
+        expected_steps.push(Step::Attestation(Attestation::Bitcoin { block_height: 42 }));
+        let expected_steps = Steps::trust(expected_steps);
+
+        let mock = server.mock("POST", "/digest")
+                         .with_body(expected_steps.to_serialized_bytes())
+                         .match_body(vec![43u8; 32])
+                         .create_async().await;
+
+        match post_digest([43; 32], url.clone()).await {
+            Err(PostDigestError::LengthLimitExceeded) => {},
+            unexpected => panic!("{:?}", unexpected),
+        };
+
+        mock.assert_async().await;
+
         Ok(())
     }
 
     #[tokio::test]
     async fn test_stamp_with_options() -> Result<(), Box<dyn std::error::Error>> {
-        dbg!(stamp_with_options([0; 32], StampOptions::default()).await?);
+        let mut server1 = mockito::Server::new_async().await;
+        let url1: &str = &server1.url();
+        let url1 = Url::try_from(url1).unwrap();
+
+        let expected_steps1 = vec![Step::Attestation(Attestation::Bitcoin { block_height: 42 })];
+        let expected_steps1 = Steps::trust(expected_steps1);
+
+        let mock1 = server1.mock("POST", "/digest")
+                           .with_body(expected_steps1.to_serialized_bytes())
+                           .create_async().await;
+
+        let mut server2 = mockito::Server::new_async().await;
+        let url2: &str = &server2.url();
+        let url2 = Url::try_from(url2).unwrap();
+
+        let expected_steps2 = vec![Step::Attestation(Attestation::Bitcoin { block_height: 43 })];
+        let expected_steps2 = Steps::trust(expected_steps2);
+
+        let mock2 = server2.mock("POST", "/digest")
+                           .with_body(expected_steps2.to_serialized_bytes())
+                           .create_async().await;
+
+        let stamp_options = StampOptions {
+            aggregators: vec![url1, url2],
+            min_attestations: NonZero::new(2).unwrap(),
+            timeout: Duration::from_secs(5),
+        };
+
+        // FIXME: validate that ts had the expected attestations in it
+        let _ts = stamp_with_options([0; 32], stamp_options).await?;
+
+        mock1.assert_async().await;
+        mock2.assert_async().await;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stamp_with_options_partial_failure() -> Result<(), Box<dyn std::error::Error>> {
+        let mut server1 = mockito::Server::new_async().await;
+        let url1: &str = &server1.url();
+        let url1 = Url::try_from(url1).unwrap();
+
+        let expected_steps1 = vec![Step::Attestation(Attestation::Bitcoin { block_height: 42 })];
+        let expected_steps1 = Steps::trust(expected_steps1);
+
+        let mock1 = server1.mock("POST", "/digest")
+                           .with_body(expected_steps1.to_serialized_bytes())
+                           .create_async().await;
+
+        let mut server2 = mockito::Server::new_async().await;
+        let url2: &str = &server2.url();
+        let url2 = Url::try_from(url2).unwrap();
+
+        let mock2 = server2.mock("POST", "/digest")
+                           .with_body("not a timestamp")
+                           .create_async().await;
+
+        let stamp_options = StampOptions {
+            aggregators: vec![url1, url2],
+            min_attestations: NonZero::new(1).unwrap(),
+            timeout: Duration::from_secs(5),
+        };
+
+        let ts = stamp_with_options([0; 32], stamp_options).await?;
+        assert_eq!(ts.steps(), &expected_steps1);
+
+        mock1.assert_async().await;
+        mock2.assert_async().await;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_stamp_with_options_total_failure() -> Result<(), Box<dyn std::error::Error>> {
+        let mut server1 = mockito::Server::new_async().await;
+        let url1: &str = &server1.url();
+        let url1 = Url::try_from(url1).unwrap();
+
+        let mock1 = server1.mock("POST", "/digest")
+                           .with_body("not a timestamp")
+                           .create_async().await;
+
+        let mut server2 = mockito::Server::new_async().await;
+        let url2: &str = &server2.url();
+        let url2 = Url::try_from(url2).unwrap();
+
+        let mock2 = server2.mock("POST", "/digest")
+                           .with_body("no found")
+                           .with_status(404)
+                           .create_async().await;
+
+        let stamp_options = StampOptions {
+            aggregators: vec![url1, url2],
+            min_attestations: NonZero::new(1).unwrap(),
+            timeout: Duration::from_secs(5),
+        };
+
+        match stamp_with_options([0; 32], stamp_options).await {
+            Err(TimestampDigestError::InsufficientResponses { .. }) => {},
+            unexpected => panic!("{:?}", unexpected),
+        }
+
+        mock1.assert_async().await;
+        mock2.assert_async().await;
+
         Ok(())
     }
 }

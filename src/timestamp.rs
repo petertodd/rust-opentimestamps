@@ -44,6 +44,12 @@ impl Step {
         }
     }
 
+    pub fn to_serialized_bytes(&self) -> Box<[u8]> {
+        let mut r = vec![];
+        self.serialize(&mut r).expect("Vec write implementation is infallible");
+        r.into_boxed_slice()
+    }
+
     pub fn deserialize(reader: &mut impl io::Read) -> Result<Self, DeserializeError> {
         let mut bin_op_arg = [0; op::MAX_OUTPUT_LENGTH]; // FIXME: is this actually the max?
 
@@ -76,11 +82,21 @@ impl Step {
 pub struct Steps(Vec<Step>);
 
 impl Steps {
+    pub(crate) fn trust(steps: Vec<Step>) -> Self {
+        Self(steps)
+    }
+
     pub fn serialize(&self, w: &mut impl io::Write) -> Result<(), io::Error> {
         for step in &self.0 {
             step.serialize(w)?;
         }
         Ok(())
+    }
+
+    pub fn to_serialized_bytes(&self) -> Box<[u8]> {
+        let mut r = vec![];
+        self.serialize(&mut r).expect("Vec write implementation is infallible");
+        r.into_boxed_slice()
     }
 
     pub fn deserialize(reader: &mut impl io::Read) -> Result<Self, DeserializeError> {
