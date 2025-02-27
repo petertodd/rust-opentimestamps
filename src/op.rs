@@ -70,7 +70,8 @@ impl fmt::Display for HashOp {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(thiserror::Error, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[error("overflow")]
 pub struct OverflowError {
     len: usize,
 }
