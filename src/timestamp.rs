@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use std::io;
+use std::sync::Arc;
 
 use thiserror::Error;
 
@@ -125,6 +127,74 @@ impl Steps {
         };
 
         Ok(Self(steps))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StepsEvaluator<'a> {
+    stack: Vec<Arc<Cow<'a, [u8]>>>,
+    dropped_result: Option<Arc<Cow<'a, [u8]>>>,
+    next_steps: &'a [Step],
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum StepsEvaluatorError {
+    #[error("opcode evaluation failed: {0}")]
+    Op(#[from] op::OverflowError),
+
+    #[error("insufficient steps")]
+    InsufficientSteps,
+}
+
+impl<'a> StepsEvaluator<'a> {
+    pub fn new(initial_msg: &'a [u8], steps: &'a [Step]) -> Self {
+        Self {
+            stack: vec![Arc::new(Cow::Borrowed(initial_msg))],
+            dropped_result: None,
+            next_steps: steps,
+        }
+    }
+
+    pub fn result(&self) -> Option<&[u8]> {
+        self.stack.last().map(|s| {
+            let s: &[u8] = &*s;
+            s
+        })
+    }
+
+    pub fn try_next_step(&mut self) -> Option<Result<(&Step, &[u8]), StepsEvaluatorError>> {
+        match (self.stack.last(), self.next_steps.split_first()) {
+            (None, None) => None,
+            (Some(msg), Some((ref next_step, remaining_steps))) => {
+                match next_step {
+                    Step::Attestation(attestation) => {
+                        let msg = self.stack.pop().unwrap();
+                        self.next_steps = remaining_steps;
+                        self.dropped_result = Some(msg);
+                        Some(Ok((next_step, self.dropped_result.as_ref().unwrap())))
+                    },
+                    Step::Op(op) => {
+                        match op.eval(msg) {
+                            Ok(result) => {
+                                *self.stack.last_mut().unwrap() = Arc::new(Cow::Owned(Vec::from(result)));
+                                self.next_steps = remaining_steps;
+                                Some(Ok((next_step, self.result().unwrap())))
+                            },
+                            Err(err) => {
+                                Some(Err(err.into()))
+                            },
+                        }
+                    },
+                    Step::Fork => {
+                        self.stack.push(Arc::clone(msg));
+                        self.next_steps = remaining_steps;
+                        Some(Ok((next_step, self.result().unwrap())))
+                    }
+                }
+            },
+            (Some(_msg), None) => Some(Err(StepsEvaluatorError::InsufficientSteps)),
+            (None, Some((_next_step, _remaining_steps))) => todo!("FIXME: what exactly does this mean? invalid steps?"),
+        }
     }
 }
 
@@ -293,6 +363,8 @@ impl<M: AsRef<[u8]>> TimestampBuilder<M> {
 mod tests {
     use super::*;
 
+    use std::assert_matches::assert_matches;
+
     #[test]
     fn test_timestamp_builder() {
         let t = TimestampBuilder::new(b"hello")
@@ -318,5 +390,40 @@ mod tests {
 
         assert_eq!(&serialized[..],
                    &b"\xf0\x07 world!\x08\x08\x08\x00\x05\x88\x96\x0d\x73\xd7\x19\x01\x01\x2a"[..]);
+    }
+
+    #[test]
+    fn test_steps_evaluator() {
+        let mut evaluator = StepsEvaluator::new(b"", &[]);
+        assert_matches!(evaluator.try_next_step(), Some(Err(StepsEvaluatorError::InsufficientSteps)));
+
+        // try_next_step() does *not* modify state on an error
+        assert_matches!(evaluator.try_next_step(), Some(Err(StepsEvaluatorError::InsufficientSteps)));
+
+        let mut evaluator = StepsEvaluator::new(b"foobar",
+            &[Step::Attestation(Attestation::Bitcoin { block_height: 42 })]
+        );
+        assert_matches!(evaluator.try_next_step(),
+            Some(Ok((Step::Attestation(Attestation::Bitcoin { block_height: 42 }), b"foobar")))
+        );
+        assert_matches!(evaluator.try_next_step(), None);
+        assert_matches!(evaluator.try_next_step(), None);
+        dbg!(&evaluator);
+
+        let mut evaluator = StepsEvaluator::new(b"foobar",
+            &[Step::Fork, Step::Attestation(Attestation::Bitcoin { block_height: 42 }),
+                          Step::Attestation(Attestation::Bitcoin { block_height: 43 })]
+        );
+        assert_matches!(evaluator.try_next_step(),
+            Some(Ok((Step::Fork, b"foobar")))
+        );
+        assert_matches!(evaluator.try_next_step(),
+            Some(Ok((Step::Attestation(Attestation::Bitcoin { block_height: 42 }), b"foobar")))
+        );
+        assert_matches!(evaluator.try_next_step(),
+            Some(Ok((Step::Attestation(Attestation::Bitcoin { block_height: 43 }), b"foobar")))
+        );
+        assert_matches!(evaluator.try_next_step(), None);
+        dbg!(&evaluator);
     }
 }
