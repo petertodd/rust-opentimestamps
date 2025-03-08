@@ -1,3 +1,5 @@
+//! Time attestation.
+
 use std::io;
 
 use crate::ser::{self, DeserializeError};

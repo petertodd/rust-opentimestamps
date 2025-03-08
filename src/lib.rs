@@ -1,3 +1,8 @@
+//! An implementation of the OpenTimestamps protocol for Rust.
+//!
+//! This crate is a general purpose library for the creation and validation of OpenTimestamps
+//! proofs.
+
 #![feature(assert_matches)]
 
 #![allow(unused_imports)]

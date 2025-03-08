@@ -1,3 +1,7 @@
+//! Timestamp proofs.
+//!
+//! Using a sequence of commitment operations, timestamp proofs prove that
+
 use std::borrow::Cow;
 use std::io;
 use std::sync::Arc;
@@ -235,6 +239,7 @@ impl<'a> IntoIterator for &'a Steps {
     }
 }
 
+/// A timestamp proof.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timestamp<M = Box<[u8]>> {
     msg: M,
@@ -269,6 +274,7 @@ impl<M: AsRef<[u8]>> Timestamp<M> {
     }
 }
 
+/// A builder for creating a `Timestamp`.
 #[derive(Debug, Clone)]
 pub struct TimestampBuilder<M = Box<[u8]>> {
     msg: M,
@@ -287,6 +293,7 @@ impl<M: Default> Default for TimestampBuilder<M> {
 }
 
 impl<M> TimestampBuilder<M> {
+    /// Creates a new `TimestampBuilder`, taking the message to be timestamped.
     pub fn new(msg: M) -> Self {
         Self {
             msg,
@@ -295,18 +302,25 @@ impl<M> TimestampBuilder<M> {
         }
     }
 
+    /// Returns a reference to the message being timestamped.
     pub fn msg(&self) -> &M {
         &self.msg
     }
 }
 
 impl<M: AsRef<[u8]>> TimestampBuilder<M> {
+    /// Tries to push an `Op` to the proof.
+    ///
+    /// Returns `OverflowError` if evaluation overflowed.
     pub fn try_push_op(mut self, op: Op) -> Result<Self, op::OverflowError> {
         self.result = Some(op.eval(self.result())?);
         self.steps.push(Step::Op(op));
         Ok(self)
     }
 
+    /// Pushes a `HashOp` to the proof.
+    ///
+    /// Infallible, because hash operations can't fail.
     pub fn hash(mut self, op: HashOp) -> Self {
         self.result = Some(op.eval(self.result()));
         self.steps.push(Step::Op(Op::HashOp(op)));

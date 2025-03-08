@@ -1,3 +1,5 @@
+//! RPC interface to calendars and aggregators.
+
 use std::num::NonZero;
 use std::time::Duration;
 
