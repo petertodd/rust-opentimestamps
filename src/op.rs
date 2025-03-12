@@ -55,7 +55,7 @@ pub fn op_hexlify(msg: &[u8]) -> Result<Box<[u8]>, OverflowError> {
 ///
 /// These operations are notable for being infallible: all inputs to a hash operation map to a
 /// valid output digest.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum HashOp {
     Sha1,
     Sha256,
