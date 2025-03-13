@@ -1,3 +1,7 @@
+#![doc(hidden)]
+
+//! Internal helper for displaying bytes as hex. Don't use this.
+
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]

@@ -1,6 +1,9 @@
 //! Timestamp proofs.
 //!
-//! Using a sequence of commitment operations, timestamp proofs prove that
+//! Here we combine commitment operations and attestations to:
+//!
+//! 1) Prove via *commitment operations* that a message existed prior to one or more other messages.
+//! 2) *Attest* to the fact that the message was created prior to a particular time.
 
 use std::borrow::Cow;
 use std::io;

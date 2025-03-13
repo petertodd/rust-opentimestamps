@@ -1,4 +1,8 @@
 //! Serialization and deserialization.
+//!
+//! The inner workings of serialization and deserialization are considered an implementation
+//! detail, not a public API. So this module only exposes the `DeserializeError` type returned when
+//! deserialization fails.
 
 use std::io::{self, Read, Write};
 
@@ -37,7 +41,7 @@ impl From<String> for DeserializeError {
 }
 
 
-pub fn serialize_u64(mut n: u64, writer: &mut impl Write) -> Result<(), io::Error> {
+pub(crate) fn serialize_u64(mut n: u64, writer: &mut impl Write) -> Result<(), io::Error> {
     while n >= 0b1000_0000 {
         let b = n | 0b1000_0000;
         writer.write_all(&[b as u8])?;
@@ -47,7 +51,7 @@ pub fn serialize_u64(mut n: u64, writer: &mut impl Write) -> Result<(), io::Erro
     Ok(())
 }
 
-pub fn serialize_u32(n: u32, writer: &mut impl Write) -> Result<(), io::Error> {
+pub(crate) fn serialize_u32(n: u32, writer: &mut impl Write) -> Result<(), io::Error> {
     serialize_u64(n as u64, writer)
 }
 
@@ -75,20 +79,20 @@ fn deserialize_varint(reader: &mut impl Read, bits: u32) -> Result<u64, Deserial
     Err("varint overflow".into())
 }
 
-pub fn deserialize_u64(reader: &mut impl Read) -> Result<u64, DeserializeError> {
+pub(crate) fn deserialize_u64(reader: &mut impl Read) -> Result<u64, DeserializeError> {
     deserialize_varint(reader, u64::BITS)
 }
 
-pub fn deserialize_u32(reader: &mut impl Read) -> Result<u32, DeserializeError> {
+pub(crate) fn deserialize_u32(reader: &mut impl Read) -> Result<u32, DeserializeError> {
     deserialize_varint(reader, u32::BITS).map(|n| n as u32)
 }
 
-pub fn serialize_varbytes(buf: &[u8], writer: &mut impl Write) -> Result<(), io::Error> {
+pub(crate) fn serialize_varbytes(buf: &[u8], writer: &mut impl Write) -> Result<(), io::Error> {
     serialize_u64(buf.len() as u64, writer)?;
     writer.write_all(buf)
 }
 
-pub fn deserialize_varbytes<'a>(buf: &'a mut [u8], reader: &mut impl Read) -> Result<&'a [u8], DeserializeError> {
+pub(crate) fn deserialize_varbytes<'a>(buf: &'a mut [u8], reader: &mut impl Read) -> Result<&'a [u8], DeserializeError> {
     let len = deserialize_u64(reader)?;
     if len > buf.len() as u64 {
         Err(DeserializeError::Invalid("max length exceeded".into()))

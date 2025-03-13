@@ -1,4 +1,4 @@
-//! Tooling to build merkle trees.
+//! Tooling to build merkle trees for timestamp proofs.
 
 use std::mem;
 
@@ -7,6 +7,15 @@ use rand;
 use crate::timestamp::{Timestamp, TimestampBuilder};
 use crate::op::HashOp;
 
+/// A merkle tree builder.
+///
+/// This builder starts with one or more TimestampBuilders, creates a merkle tree of those
+/// timestamps, and then allows you to further timestamp the tip of that merkle tree. The result is
+/// a completed `Timestamp` for every initial `TimestampBuilder`, with each final `Timestamp`
+/// containing the necessary steps up the merkle tree and timestamp on top of it.
+///
+/// Sha256 is always used for the operations in the merkle tree; no other hash function is
+/// supported.
 #[derive(Debug, Clone)]
 pub struct MerkleTreeBuilder {
     tip: [u8; 32],
@@ -50,6 +59,7 @@ fn build_merkle_tree(items: &mut [TimestampBuilder]) -> [u8; 32] {
 }
 
 impl MerkleTreeBuilder {
+    /// Creates a new `MerkleTreeBuilder`.
     pub fn new(mut items: Vec<TimestampBuilder>) -> Self {
         let tip = build_merkle_tree(&mut items[..]);
         Self { items, tip }
@@ -65,10 +75,12 @@ impl MerkleTreeBuilder {
         Self::new(items)
     }
 
+    /// Returns the merkle tree tip digest.
     pub fn tip(&self) -> &[u8; 32] {
         &self.tip
     }
 
+    /// Finish the merkle tree with a timestamp on the tip digest.
     pub fn finish(self, tip_timestamp: Timestamp) -> Vec<Timestamp> {
         assert_eq!(self.items.first().unwrap().result(), tip_timestamp.msg().as_ref());
 
