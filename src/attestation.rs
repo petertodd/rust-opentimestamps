@@ -1,4 +1,9 @@
-//! Time attestation.
+//! Time attestation: claims about when messages existed in time.
+//!
+//! Commitment operations only prove before-after relationships between different messages; math
+//! alone is insufficient to determine when a message existed. Thus we need *attestations* by time
+//! sources that we trust to provide evidence as to when messages existed. This module provides the
+//! tooling necessary to represent attestations in timestamp proofs.
 
 use std::io;
 
@@ -15,6 +20,10 @@ const BITCOIN_ATTESTATION_TAG: Tag = [0x05, 0x88, 0x96, 0x0d, 0x73, 0xd7, 0x19, 
 const PENDING_ATTESTATION_TAG: Tag = [0x83, 0xdf, 0xe3, 0x0d, 0x2e, 0xf9, 0x0c, 0x8e];
 const MAX_PAYLOAD_SIZE: usize = 8192;
 
+/// A time attestation in a `Timestamp` proof.
+///
+/// This enum represents every different type of attestation that the OpenTimestamps protocol
+/// supports.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Attestation {
     Bitcoin {
