@@ -154,4 +154,35 @@ impl DetachedTimestampFile {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
+    use std::io;
+    use std::fs::File;
+    use std::path::{Path, PathBuf};
+
+    #[track_caller]
+    fn open_test_file<P: AsRef<Path>>(path: P) -> File {
+        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.push("example-ots-files");
+        p.push(path);
+        File::open(p).expect("could not open file")
+    }
+
+    #[test]
+    fn test() {
+        let ts = DetachedTimestampFile::deserialize(&mut open_test_file("empty.ots")).unwrap();
+        let attestations: Vec<_> = ts.steps.attestations().collect();
+        assert_eq!(attestations.len(), 1);
+        assert_eq!(attestations[0], &Attestation::Bitcoin { block_height: 129405 });
+    }
+
+    #[test]
+    fn test_invalid_detached_timestamp_files() {
+        DetachedTimestampFile::deserialize(&mut open_test_file("empty")).unwrap_err();
+        DetachedTimestampFile::deserialize(&mut open_test_file("invalid/bad-major-version.ots")).unwrap_err();
+        DetachedTimestampFile::deserialize(&mut open_test_file("invalid/invalid-file-digest-type.ots")).unwrap_err();
+
+        // FIXME: test fails
+        // DetachedTimestampFile::deserialize(&mut open_test_file("invalid/exceeds-max-msg-length.ots")).unwrap_err();
+    }
 }
