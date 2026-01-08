@@ -40,13 +40,6 @@ impl Default for StampOptions {
     }
 }
 
-pub async fn stamp(
-    ts: TimestampBuilder,
-    options: &StampOptions,
-) -> Result<Timestamp, StampError> {
-    todo!()
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum PostDigestError {
     #[error("bad status code {0:?}")]
@@ -62,7 +55,7 @@ pub enum PostDigestError {
     Deserialize(#[from] crate::ser::DeserializeError),
 }
 
-async fn post_digest(
+pub async fn post_digest(
     digest: [u8; 32],
     aggregator: Url,
 ) -> Result<Timestamp<[u8; 32]>, PostDigestError> {
@@ -98,7 +91,7 @@ pub enum TimestampDigestError {
 }
 
 
-async fn stamp_with_options(digest: [u8; 32], options: StampOptions) -> Result<Timestamp<[u8; 32]>, TimestampDigestError> {
+pub async fn stamp_with_options(digest: [u8; 32], options: StampOptions) -> Result<Timestamp<[u8; 32]>, TimestampDigestError> {
     let mut set = JoinSet::new();
 
     for aggregator in options.aggregators.into_iter() {
