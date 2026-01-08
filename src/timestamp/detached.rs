@@ -77,6 +77,10 @@ impl DetachedTimestampFile {
     /// [IANA Media Type Assignment](https://www.iana.org/assignments/media-types/application/vnd.opentimestamps.ots)
     pub const MEDIA_TYPE_STR: &str = "application/vnd.opentimestamps.ots";
 
+    pub fn new(inner: Timestamp<FileDigest>) -> Self {
+        Self { inner }
+    }
+
     /// Returns the `FileDigest`.
     pub fn digest(&self) -> &FileDigest {
         self.inner.msg()
