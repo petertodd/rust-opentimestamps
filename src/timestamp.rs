@@ -258,6 +258,13 @@ impl<M> Timestamp<M> {
     pub fn steps(&self) -> &Steps {
         &self.steps
     }
+
+    pub fn map_msg<M2>(self, f: impl FnOnce(M) -> M2) -> Timestamp<M2> {
+        Timestamp {
+            steps: self.steps,
+            msg: f(self.msg),
+        }
+    }
 }
 
 impl<M: AsRef<[u8]>> Timestamp<M> {
