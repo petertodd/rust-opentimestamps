@@ -160,7 +160,6 @@ impl DetachedTimestampFile {
 mod test {
     use super::*;
 
-    use std::io;
     use std::fs::File;
     use std::path::{Path, PathBuf};
 

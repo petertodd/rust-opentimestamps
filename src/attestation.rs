@@ -10,7 +10,6 @@ use std::io;
 use crate::ser::{self, DeserializeError};
 
 pub mod uri;
-mod tag;
 
 use self::uri::UriString;
 

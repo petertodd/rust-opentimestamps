@@ -8,8 +8,6 @@ use std::io::{self, Read, Write};
 
 use thiserror::Error;
 
-use crate::timestamp::Timestamp;
-
 /// Error returned by deserialization.
 #[derive(Debug, Error)]
 pub enum DeserializeError {

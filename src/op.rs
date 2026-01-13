@@ -146,11 +146,11 @@ impl<B: AsRef<[u8]>> Op<B> {
     pub fn serialize(&self, w: &mut impl io::Write) -> Result<(), io::Error> {
         match self {
             Self::HashOp(op) => op.serialize(w),
-            Self::Append(right) => {
+            Self::Append(_right) => {
                 w.write_all(&[0xf0])?;
                 todo!()
             },
-            Self::Prepend(left) => {
+            Self::Prepend(_left) => {
                 w.write_all(&[0xf1])?;
                 todo!()
             },

@@ -17,11 +17,6 @@ pub const DEFAULT_AGGREGATORS: &[&str] = &["https://a.pool.opentimestamps.org",
 // FIXME: is this a reasonable length? from python-opentimestamps. But it's kinda big.
 pub const MAX_STAMP_LENGTH: usize = 10_000;
 
-#[derive(Debug)]
-pub struct StampError {
-    ts: TimestampBuilder,
-}
-
 #[derive(Debug, Clone)]
 pub struct StampOptions {
     aggregators: Vec<Url>,

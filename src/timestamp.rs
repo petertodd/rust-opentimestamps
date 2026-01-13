@@ -9,8 +9,6 @@ use std::borrow::Cow;
 use std::io;
 use std::sync::Arc;
 
-use thiserror::Error;
-
 use crate::op::{self, HashOp, Op};
 use crate::attestation::Attestation;
 use crate::ser::{self, DeserializeError};
@@ -174,7 +172,7 @@ impl<'a> StepsEvaluator<'a> {
             (None, None) => None,
             (Some(msg), Some((ref next_step, remaining_steps))) => {
                 match next_step {
-                    Step::Attestation(attestation) => {
+                    Step::Attestation(_attestation) => {
                         let msg = self.stack.pop().unwrap();
                         self.next_steps = remaining_steps;
                         self.dropped_result = Some(msg);
@@ -370,7 +368,7 @@ impl<M: AsRef<[u8]>> TimestampBuilder<M> {
 
         Timestamp {
             msg: self.msg,
-            steps: Steps(self.steps),
+            steps: Steps::trust(self.steps),
         }
     }
 
@@ -378,7 +376,7 @@ impl<M: AsRef<[u8]>> TimestampBuilder<M> {
         self.steps.push(Step::Attestation(attestation));
         Timestamp {
             msg: self.msg,
-            steps: Steps(self.steps),
+            steps: Steps::trust(self.steps),
         }
     }
 }

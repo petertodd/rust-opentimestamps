@@ -119,7 +119,7 @@ mod test {
         assert_eq!(builder.tip, [252, 172, 191, 66, 234, 208, 21, 52, 228, 232, 243, 175, 181, 101, 38, 122, 15, 81, 143, 16, 87, 98, 223, 146, 109, 9, 25, 247, 251, 145, 102, 203]);
 
         let mut v = vec![];
-        for i in 0 ..= 1_000 {
+        for _ in 0 ..= 1_000 {
             v.push(TimestampBuilder::new(vec![0; 32].into()))
         }
         let _builder = MerkleTreeBuilder::new(v);
