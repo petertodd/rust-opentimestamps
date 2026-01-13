@@ -3,8 +3,6 @@
 //! This crate is a general purpose library for the creation and validation of OpenTimestamps
 //! proofs.
 
-#![feature(assert_matches)]
-
 #![allow(unused_imports)]
 #![allow(dead_code)]
 #![allow(unused_variables)]

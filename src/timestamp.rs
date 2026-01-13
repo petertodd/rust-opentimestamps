@@ -387,8 +387,6 @@ impl<M: AsRef<[u8]>> TimestampBuilder<M> {
 mod tests {
     use super::*;
 
-    use std::assert_matches::assert_matches;
-
     #[test]
     fn test_timestamp_builder() {
         let t = TimestampBuilder::new(b"hello")
@@ -419,35 +417,35 @@ mod tests {
     #[test]
     fn test_steps_evaluator() {
         let mut evaluator = StepsEvaluator::new(b"", &[]);
-        assert_matches!(evaluator.try_next_step(), Some(Err(StepsEvaluatorError::InsufficientSteps)));
+        assert!(matches!(evaluator.try_next_step(), Some(Err(StepsEvaluatorError::InsufficientSteps))));
 
         // try_next_step() does *not* modify state on an error
-        assert_matches!(evaluator.try_next_step(), Some(Err(StepsEvaluatorError::InsufficientSteps)));
+        assert!(matches!(evaluator.try_next_step(), Some(Err(StepsEvaluatorError::InsufficientSteps))));
 
         let mut evaluator = StepsEvaluator::new(b"foobar",
             &[Step::Attestation(Attestation::Bitcoin { block_height: 42 })]
         );
-        assert_matches!(evaluator.try_next_step(),
+        assert!(matches!(evaluator.try_next_step(),
             Some(Ok((Step::Attestation(Attestation::Bitcoin { block_height: 42 }), b"foobar")))
-        );
-        assert_matches!(evaluator.try_next_step(), None);
-        assert_matches!(evaluator.try_next_step(), None);
+        ));
+        assert!(matches!(evaluator.try_next_step(), None));
+        assert!(matches!(evaluator.try_next_step(), None));
         dbg!(&evaluator);
 
         let mut evaluator = StepsEvaluator::new(b"foobar",
             &[Step::Fork, Step::Attestation(Attestation::Bitcoin { block_height: 42 }),
                           Step::Attestation(Attestation::Bitcoin { block_height: 43 })]
         );
-        assert_matches!(evaluator.try_next_step(),
+        assert!(matches!(evaluator.try_next_step(),
             Some(Ok((Step::Fork, b"foobar")))
-        );
-        assert_matches!(evaluator.try_next_step(),
+        ));
+        assert!(matches!(evaluator.try_next_step(),
             Some(Ok((Step::Attestation(Attestation::Bitcoin { block_height: 42 }), b"foobar")))
-        );
-        assert_matches!(evaluator.try_next_step(),
+        ));
+        assert!(matches!(evaluator.try_next_step(),
             Some(Ok((Step::Attestation(Attestation::Bitcoin { block_height: 43 }), b"foobar")))
-        );
-        assert_matches!(evaluator.try_next_step(), None);
+        ));
+        assert!(matches!(evaluator.try_next_step(), None));
         dbg!(&evaluator);
     }
 }
