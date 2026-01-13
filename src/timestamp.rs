@@ -253,10 +253,14 @@ impl<M> Timestamp<M> {
         &self.msg
     }
 
+    /// Returns the steps in this timestamp.
     pub fn steps(&self) -> &Steps {
         &self.steps
     }
 
+    /// Converts a `Timestamp` to a different message type.
+    ///
+    /// `msg1.as_ref() == msg2.as_ref()` must hold for correctness.
     pub fn map_msg<M2>(self, f: impl FnOnce(M) -> M2) -> Timestamp<M2> {
         Timestamp {
             steps: self.steps,
