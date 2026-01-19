@@ -349,6 +349,18 @@ impl<M: AsRef<[u8]>> TimestampBuilder<M> {
             .expect("overflow")
     }
 
+    /// Hashes the result with a 128-bit random nonce for privacy.
+    pub fn hash_with_nonce(self) -> Self {
+        let nonce: [u8; 16] = rand::random();
+
+        if self.result().len() + nonce.len() > op::MAX_OUTPUT_LENGTH {
+            self.hash(HashOp::Sha256)
+        } else {
+            self
+        }.append(&nonce)
+         .hash(HashOp::Sha256)
+    }
+
     /// Returns the result of the operations so far.
     pub fn result(&self) -> &[u8] {
         self.result.as_ref()
